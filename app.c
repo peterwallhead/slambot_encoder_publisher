@@ -4,15 +4,20 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 
-#define LEFT_A_GPIO   17
-#define LEFT_B_GPIO   16
-#define LEFT_LED_GPIO 33
+#define LEFT_A_GPIO     17
+#define LEFT_B_GPIO     16
+#define LEFT_LED_GPIO   33
+#define RIGHT_A_GPIO    18
+#define RIGHT_B_GPIO    19
+#define RIGHT_LED_GPIO  21
 
-#define LEFT_UNIT   PCNT_UNIT_0
+#define LEFT_UNIT       PCNT_UNIT_0
+#define RIGHT_UNIT      PCNT_UNIT_1
 
 static portMUX_TYPE pulse_mux = portMUX_INITIALIZER_UNLOCKED;
 
 volatile int32_t left_ticks_total = 0;
+volatile int32_t right_ticks_total = 0;
 
 
 void pcnt_setup_quadrature(pcnt_unit_t unit, gpio_num_t pin_a, gpio_num_t pin_b) {
@@ -38,17 +43,21 @@ void pcnt_setup_quadrature(pcnt_unit_t unit, gpio_num_t pin_a, gpio_num_t pin_b)
 // Use PCNT to accumulate ticks from the encoders
 void encoder_task(void *arg) {
   int16_t left_now = 0;
+  int16_t right_now = 0;
 
   while (1) {
       pcnt_get_counter_value(LEFT_UNIT, &left_now);
+      pcnt_get_counter_value(LEFT_UNIT, &right_now);
       
       portENTER_CRITICAL(&pulse_mux);
       left_ticks_total += left_now;
+      right_ticks_total += right_now;
       portEXIT_CRITICAL(&pulse_mux);
 
       pcnt_counter_clear(LEFT_UNIT);
+      pcnt_counter_clear(RIGHT_UNIT);
 
-      ESP_LOGI("ENCODER", "L: %d", left_ticks_total);
+      ESP_LOGI("ENCODER", "L: %d | R: %d", left_ticks_total, right_ticks_total);
 
       vTaskDelay(pdMS_TO_TICKS(100));
   }
@@ -57,10 +66,12 @@ void encoder_task(void *arg) {
 // Provide visual feedback when an encoder's ticks count has changed
 void new_ticks_led_task(void *arg) {
   int16_t previous_left_ticks_total = 0;
+  int16_t previous_right_ticks_total = 0;
 
   while (1) {
     portENTER_CRITICAL(&pulse_mux);
     int32_t current_left_ticks_total = left_ticks_total;
+    int32_t current_right_ticks_total = right_ticks_total;
     portEXIT_CRITICAL(&pulse_mux);
 
     if (current_left_ticks_total != previous_left_ticks_total) {
@@ -70,16 +81,26 @@ void new_ticks_led_task(void *arg) {
       gpio_set_level(LEFT_LED_GPIO, 0);
     }
 
+    if (current_right_ticks_total != previous_right_ticks_total) {
+      gpio_set_level(RIGHT_LED_GPIO, 1);
+      previous_right_ticks_total = current_right_ticks_total;
+    } else {
+      gpio_set_level(RIGHT_LED_GPIO, 0);
+    }
+
     vTaskDelay(pdMS_TO_TICKS(200));
   }
 }
 
 void appMain(void) {
     gpio_set_direction(LEFT_LED_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(RIGHT_LED_GPIO, GPIO_MODE_OUTPUT);
     gpio_set_level(LEFT_LED_GPIO, 0);
+    gpio_set_level(RIGHT_LED_GPIO, 0);
 
-    // Testing with both channels on a single encoder
+    // Set up PCNT for both encoders
     pcnt_setup_quadrature(LEFT_UNIT, LEFT_A_GPIO, LEFT_B_GPIO);
+    pcnt_setup_quadrature(RIGHT_UNIT, RIGHT_A_GPIO, RIGHT_B_GPIO);
 
     xTaskCreate(encoder_task, "encoder", 2048, NULL, 5, NULL);
     xTaskCreate(new_ticks_led_task, "new_ticks_led", 4096, NULL, 5, NULL);
