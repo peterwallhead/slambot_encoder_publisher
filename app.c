@@ -47,7 +47,7 @@ void encoder_task(void *arg) {
 
   while (1) {
       pcnt_get_counter_value(LEFT_UNIT, &left_now);
-      pcnt_get_counter_value(LEFT_UNIT, &right_now);
+      pcnt_get_counter_value(RIGHT_UNIT, &right_now);
       
       portENTER_CRITICAL(&pulse_mux);
       left_ticks_total += left_now;
