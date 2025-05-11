@@ -65,8 +65,8 @@ void encoder_task(void *arg) {
 
 // Provide visual feedback when an encoder's ticks count has changed
 void new_ticks_led_task(void *arg) {
-  int16_t previous_left_ticks_total = 0;
-  int16_t previous_right_ticks_total = 0;
+  int32_t previous_left_ticks_total = 0;
+  int32_t previous_right_ticks_total = 0;
 
   while (1) {
     portENTER_CRITICAL(&pulse_mux);
