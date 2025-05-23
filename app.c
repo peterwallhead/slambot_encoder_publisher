@@ -128,6 +128,17 @@ void new_ticks_led_task(void *arg) {
   }
 }
 
+void run_self_test() {
+  gpio_set_level(LEFT_LED_GPIO, 1);
+  gpio_set_level(RIGHT_LED_GPIO, 1);
+
+  vTaskDelay(pdMS_TO_TICKS(1000));
+
+  gpio_set_level(LEFT_LED_GPIO, 0);
+  gpio_set_level(RIGHT_LED_GPIO, 0);
+
+}
+
 void appMain(void) {
     allocator = rcl_get_default_allocator();
     slambot_interfaces__msg__EncoderTicks__init(&msg);
@@ -141,6 +152,10 @@ void appMain(void) {
     pcnt_setup_quadrature(LEFT_UNIT, LEFT_A_GPIO, LEFT_B_GPIO);
     pcnt_setup_quadrature(RIGHT_UNIT, RIGHT_A_GPIO, RIGHT_B_GPIO);
 
+    // Run self test of encoder LEDs
+    run_self_test();
+
+    // Start tasks
     xTaskCreate(encoder_task, "encoder", 2048, NULL, 5, NULL);
     xTaskCreate(new_ticks_led_task, "new_ticks_led", 2048, NULL, 5, NULL);
 
