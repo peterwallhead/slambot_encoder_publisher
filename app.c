@@ -171,11 +171,11 @@ void appMain(void) {
       "/encoder_ticks"
     );
 
-    // Timer init: 200ms interval
+    // Timer init: 20ms interval
     rclc_timer_init_default(
       &timer,
       &support,
-      RCL_MS_TO_NS(200),
+      RCL_MS_TO_NS(20),
       encoder_publisher_callback
     );
 
